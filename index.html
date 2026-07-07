@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>University Level-2 Weather Hub</title>
+    <style>
+        body { font-family: sans-serif; max-width: 500px; margin: 50px auto; padding: 0 20px; background: #fafafa; color: #333; }
+        .block { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        input, button { padding: 10px; font-size: 15px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        input { width: 70%; margin-right: 2%; }
+        button { width: 28%; background: #2563eb; color: white; border: none; cursor: pointer; }
+        button:hover { background: #1d4ed8; }
+        .log-box { font-size: 13px; color: #555; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <h2>University Weather Hub (Lvl 2)</h2>
+
+    <div class="block">
+        <h3>Live Lookup System</h3>
+        <input type="text" id="targetCity" placeholder="Enter target city...">
+        <button onclick="getWeather()">Query API</button>
+    </div>
+
+    <div class="block" id="statsCard" style="display:none;">
+        <h3 id="cardTitle">--</h3>
+        <p>Current Temp: <span id="cardTemp">--</span>°C</p>
+        <p>Wind Conditions: <span id="cardWind">--</span> km/h</p>
+        <button style="width:100%" onclick="getDatabaseHistory()">Pull Historical Logs From DB</button>
+        <button style="width:100%; background:#dc2626; margin-top:8px;" onclick="clearDatabaseHistory()">
+         Wipe History Logs From DB
+        </button>
+        <!-- Visual container layout placeholder for our new rule-based weather tips -->
+        <div id="tipContainer" style="margin-top: 15px; padding: 12px; background: #fef08a; border-left: 4px solid #eab308; border-radius: 4px; display: none;">
+        <strong>💡 Daily Weather Tip:</strong> <span id="tipText">--</span>
+        </div>
+        <div id="historyDump" style="margin-top:15px;"></div>
+    </div>
+
+    <script>
+        let currentSearchedCity = "";
+
+        function getWeather() {
+            const city = document.getElementById('targetCity').value.trim();
+            if(!city) return;
+
+            fetch('/api/weather', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ city: city })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.error) { alert(data.error); return; }
+                    currentSearchedCity = data.city;
+                    document.getElementById('cardTitle').textContent = data.city;
+                    document.getElementById('cardTemp').textContent = data.temperature;
+                    document.getElementById('cardWind').textContent = data.wind_speed;
+                    document.getElementById('statsCard').style.display = "block";
+                    document.getElementById('historyDump').innerHTML = ""; // Clear old history views
+                
+                // 🚀 TRIGGER THE TIP ENGINE AUTOMATICALLY RIGHT HERE!
+                    fetchWeatherTip();
+            });
+        }
+
+
+        
+
+        function getDatabaseHistory() {
+            // This script calls your new endpoint via the GET parameters query line!
+            fetch(`/api/history?city=${encodeURIComponent(currentSearchedCity)}`)
+                .then(res => res.json())
+                .then(logs => {
+                    const box = document.getElementById('historyDump');
+                    if(logs.length === 0) {
+                        box.innerHTML = "<p>No entries found for this location cache.</p>";
+                        return;
+                    }
+                    box.innerHTML = logs.map(item => `
+                        <div class="log-box">
+                            Captured: <strong>${item.temperature}°C</strong> | Wind: ${item.wind_speed}km/h <br>
+                            <small style="color:#999">${item.captured_at}</small>
+                        </div>
+                    `).join('');
+                });
+        }
+        function clearDatabaseHistory() {
+            // If the user hasn't queried a city yet, do nothing
+            if (!currentSearchedCity) return;
+
+            // Challenge: Use fetch() to send a POST request containing our city name
+            fetch('/api/history/clear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ city: currentSearchedCity })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    // 1. Alert the user how many files were cleared using data.records_cleared
+                    alert(`${data.records_cleared} historic tracking records successfully wiped!`);
+        
+                    // 2. Clear out the old visual history list box on the screen
+                    document.getElementById('historyDump').innerHTML = "";
+                });
+        }
+        function fetchWeatherTip() {
+            if (!currentSearchedCity) return;
+
+            // Call our new rule engine route using standard URL query params
+            fetch(`/api/tip?city=${encodeURIComponent(currentSearchedCity)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) return;
+            
+                    // Inject the rule text string straight into our new HTML container
+                    document.getElementById('tipText').textContent = data.weather_tip;
+                    document.getElementById('tipContainer').style.display = "block";
+                });
+        }   
+
+    </script>
+</body>
+</html>

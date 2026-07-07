@@ -1,0 +1,10 @@
+# Ignore the virtual environment folders
+env/
+.venv/
+__pycache__/
+
+# Ignore your local database file (so you don't overwrite your clean repo with local search test logs)
+weather_hub.db
+
+# Ignore uv temporary cache files
+.uv/
